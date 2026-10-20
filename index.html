@@ -35,10 +35,13 @@ main{padding-block:18px 120px}
 .card h2{font-size:17px;margin:0 0 4px}
 .card .sub{color:var(--mute);font-size:13px;margin:0 0 14px}
 label.f{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--mute);margin-bottom:4px}
-input[type=text],input[type=email],input[type=tel],input[type=number],input[type=password],input[type=search],select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--ground);color:var(--ink)}
+input[type=text],input[type=email],input[type=tel],input[type=number],input[type=password],input[type=search],select,textarea{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--ground);color:var(--ink)}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));align-items:end}
 .tels{display:flex;flex-direction:column;gap:10px}
+.envop{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+textarea{resize:vertical;min-height:64px;line-height:1.4}
+.card .nota{color:var(--mute);font-size:12px;margin:6px 0 0}
 .tel{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center}
 @media(max-width:560px){.tel{grid-template-columns:1fr auto}.tel .tn{grid-column:1/3}}
 .btn{font:inherit;font-weight:600;padding:10px 16px;border-radius:999px;border:1px solid transparent;cursor:pointer;background:var(--accent);color:#fff}
@@ -168,6 +171,16 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
         <div><label class="f" for="cbajo">Si no llega al mínimo</label>
           <select id="cbajo"><option value="bloquea">No se puede enviar el pedido</option><option value="publico">Se envía a precio consumidor final</option></select></div>
       </div>
+    </div>
+    <div class="card">
+      <h2>Envíos</h2>
+      <p class="sub">Lo que ve la clienta en su pedido y lo que va en el mensaje de WhatsApp. Con una sola opción se muestra fija; con varias, la clienta elige. Sin opciones ni comentario, el bloque no aparece.</p>
+      <div class="tels" id="envops"></div>
+      <p style="margin:12px 0 16px"><button class="btn sec" type="button" id="addenv">+ Agregar opción</button></p>
+      <label class="f" for="cnota">Comentario para la clienta</label>
+      <textarea id="cnota" maxlength="200" rows="2" placeholder="Ej.: El costo del envío es a cargo de quien compra."></textarea>
+      <div class="row" style="margin-top:14px"><div><label class="f" for="ccosto">Costo de envío ($)</label><input id="ccosto" type="number" min="0" step="10"></div></div>
+      <p class="nota">En 0 no se muestra. Es informativo: no se suma al total ni cuenta para el pedido mínimo.</p>
     </div>
     <div class="card">
       <h2>Outlet 1+1</h2>
@@ -477,6 +490,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
       CAT={catalogo:c,sha:{cfg:cf.sha,aj:aj.sha},
         cfg:JSON.parse(JSON.stringify(cf.contenido||{telefonos:[],minimo:0,bajoMinimo:'bloquea',outlet:true})),
         oc:{}, orig:null};
+      var en=CAT.cfg.envio||{}; CAT.cfg.envio={opciones:(en.opciones||[]).slice(),nota:en.nota||'',costo:+en.costo||0};
       ((aj.contenido&&aj.contenido.ocultos)||[]).forEach(function(k){ CAT.oc[k]=1 });
       CAT.orig=JSON.stringify([CAT.cfg,Object.keys(CAT.oc).sort()]);
       pintarCfg(); pintarProd();
@@ -493,7 +507,18 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     }).join('');
     $('cmin').value=c.minimo||0; $('cbajo').value=c.bajoMinimo||'bloquea'; $('cout').checked=c.outlet!==false;
     $('cout_t').textContent=$('cout').checked?'Outlet visible en el catálogo':'Outlet apagado';
+    var e=c.envio;
+    $('envops').innerHTML=e.opciones.map(function(o,i){
+      return '<div class="envop" data-i="'+i+'"><input type="text" maxlength="40" value="'+esc(o)+'" placeholder="Ej.: DAC" aria-label="Opción de envío '+(i+1)+'">'+
+        '<button class="ic" type="button" data-edel="'+i+'" aria-label="Quitar opción" title="Quitar opción">×</button></div>';
+    }).join('')||'<p class="muted" style="margin:0">Sin opciones de envío.</p>';
+    $('cnota').value=e.nota; $('ccosto').value=e.costo||0;
   }
+  $('envops').addEventListener('input',function(ev){ var row=ev.target.closest('.envop'); if(!row) return; CAT.cfg.envio.opciones[+row.getAttribute('data-i')]=ev.target.value; marcar() });
+  $('envops').addEventListener('click',function(ev){ var b=ev.target.closest('[data-edel]'); if(!b) return; CAT.cfg.envio.opciones.splice(+b.getAttribute('data-edel'),1); pintarCfg(); marcar() });
+  $('addenv').addEventListener('click',function(){ CAT.cfg.envio.opciones.push(''); pintarCfg(); marcar(); var ins=$('envops').querySelectorAll('input'); ins[ins.length-1].focus() });
+  $('cnota').addEventListener('input',function(){ CAT.cfg.envio.nota=this.value; marcar() });
+  $('ccosto').addEventListener('input',function(){ CAT.cfg.envio.costo=Math.max(0,Math.round(+this.value||0)); marcar() });
   $('tels').addEventListener('input',function(ev){
     var row=ev.target.closest('.tel'); if(!row) return; var i=+row.getAttribute('data-i'), k=ev.target.getAttribute('data-k');
     CAT.cfg.telefonos[i][k]=k==='tel'?telIntl(ev.target.value):ev.target.value; marcar();
@@ -565,6 +590,10 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     if(o[0].minimo!==c.minimo) t.push('mínimo $'+c.minimo);
     if(o[0].bajoMinimo!==c.bajoMinimo) t.push(c.bajoMinimo==='publico'?'bajo el mínimo: precio consumidor final':'bajo el mínimo: no se envía');
     if((o[0].outlet!==false)!==(c.outlet!==false)) t.push(c.outlet!==false?'Outlet encendido':'Outlet apagado');
+    var e0=o[0].envio||{}, e=c.envio||{};
+    if(JSON.stringify(e0.opciones)!==JSON.stringify(e.opciones)) t.push('envío: '+(e.opciones.filter(function(x){return String(x).trim()}).join(', ')||'sin opciones'));
+    if(e0.nota!==e.nota) t.push('comentario de envío');
+    if(e0.costo!==e.costo) t.push(e.costo?'costo de envío $'+e.costo:'sin costo de envío');
     var a=o[1], b=Object.keys(CAT.oc).sort(), oc=b.filter(function(k){return a.indexOf(k)<0}).length, mo=a.filter(function(k){return b.indexOf(k)<0}).length;
     if(oc) t.push(oc+(oc===1?' producto oculto':' productos ocultos')); if(mo) t.push(mo+(mo===1?' producto visible de nuevo':' productos visibles de nuevo'));
     return t.join(', ');
@@ -579,6 +608,7 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
     if(VISTA==='hair') return guardarHair();
     var c=CAT.cfg;
     if(!c.telefonos.length||c.telefonos.some(function(t){return !/^598\d{8}$/.test(t.tel)})) return aviso('Revisá los celulares: tienen que ser números uruguayos de 9 dígitos (09X XXX XXX).','err');
+    c.envio.opciones=c.envio.opciones.map(function(x){return String(x).trim()}).filter(Boolean); c.envio.nota=c.envio.nota.trim();
     var b=$('bsave'); b.disabled=true; b.textContent='Publicando…';
     var archivos={}, o=JSON.parse(CAT.orig);
     if(JSON.stringify(o[0])!==JSON.stringify(c)) archivos['data/config.json']={sha:CAT.sha.cfg,contenido:c};
