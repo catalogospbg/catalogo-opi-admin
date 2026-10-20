@@ -228,7 +228,14 @@ function validar_(path, c, catalogo) {
     if (!(c.minimo >= 0 && c.minimo <= 1000000)) throw new Error('Mínimo inválido.');
     if (c.bajoMinimo !== 'bloquea' && c.bajoMinimo !== 'publico') throw new Error('Regla de mínimo inválida.');
     c.outlet = !!c.outlet;
-    return { telefonos: c.telefonos, minimo: c.minimo, bajoMinimo: c.bajoMinimo, outlet: c.outlet };
+    var e = c.envio || {};
+    var envio = {
+      opciones: (Array.isArray(e.opciones) ? e.opciones : []).map(function (x) { return String(x || '').trim().slice(0, 40); }).filter(String).slice(0, 6),
+      nota: String(e.nota || '').trim().slice(0, 200),
+      costo: Math.max(0, Math.round(+e.costo || 0))
+    };
+    if (envio.costo > 100000) throw new Error('Costo de envío inválido.');
+    return { telefonos: c.telefonos, minimo: c.minimo, bajoMinimo: c.bajoMinimo, outlet: c.outlet, envio: envio };
   }
   if (path === 'data/ajustes.json') {
     var o = (c && c.ocultos || []).map(String).filter(function (k) { return /^[0-9A-Za-z.\-]+$/.test(k); });
